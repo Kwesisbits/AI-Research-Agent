@@ -1,0 +1,27 @@
+# Core FastAPI
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+python-dotenv
+jinja2
+
+# Hugging Face Transformers
+transformers>=4.36.0
+torch>=2.1.0
+accelerate>=0.25.0
+bitsandbytes>=0.41.0  # For quantization
+sentencepiece  # Required by some tokenizers
+protobuf  # Required by some tokenizers
+
+# Search Tools
+duckduckgo-search  # FREE alternative to Tavily
+wikipedia
+requests
+
+# PDF Processing
+pdfminer.six
+pymupdf
+
+# Utilities
+docstring_parser
