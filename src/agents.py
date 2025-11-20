@@ -1,0 +1,97 @@
+from datetime import datetime
+from typing import Tuple, List, Dict 
+import json
+import re
+
+from src.model_manager import (
+    get_research_model,
+    get_writer_model,
+    get_editor_model
+)
+from src.research_tools import (
+    arxiv_search_tool,
+    duckduckgo_search_tool,
+    wikipedia_search_tool,
+    tool_mapping
+)
+
+def research_agent(
+  prompt: str,
+  return_messages: bool = False
+)-> Tuple[str, List[Dict]]:
+  print("====================")
+  print("Research Agent (Hermes 2 Pro)")
+  print("====================")
+  full_prompt = f"""
+  You are an advanced research agent with expceptional expertise in information retrieval. You have access to the following tools:
+
+  **Available Tools:**
+
+1. DUCKDUCKGO_SEARCH - General web search (news, blogs, websites, industry reports)
+   Format: ACTION: DUCKDUCKGO_SEARCH
+           INPUT: your search query
+
+2. ARXIV_SEARCH - Academic papers (Computer Science, Math, Physics, Statistics only)
+   Format: ACTION: ARXIV_SEARCH
+           INPUT: your search terms
+
+3. WIKIPEDIA_SEARCH - Encyclopedia for background information and definitions
+   Format: ACTION: WIKIPEDIA_SEARCH
+           INPUT: topic name
+
+**Instructions:**
+1. Analyze the user's research request carefully
+2. Use appropriate tools to gather comprehensive information
+3. After receiving tool results, analyze them and decide if you need more information
+4. When you have sufficient information, provide your final answer starting with "FINAL_ANSWER:"
+5. Include source URLs in your final answer
+
+**Format Requirements:**
+- To use a tool: Write exactly "ACTION: TOOL_NAME" on one line, then "INPUT: query" on the next
+- After tool results: Either use another tool OR provide "FINAL_ANSWER: your response"
+- Maximum 5 tool uses allowed
+
+Today is {datetime.now().strftime("%Y-%m-%d")}.
+
+**User Request:**
+{prompt}
+  """
+  messages = {"role": "user", "content": full_prompt}
+  model = get_research_model()
+  conversation_history = []
+  max_iterations = 5
+  tool_calls_made = []
+  
+  for iteration in range(max_iterations):
+    print(f"\n Iteration {iteration + 1}/{max_iteration}")
+
+    response = model.chat_completion(
+      messages, 
+      max_tokens = 2048,
+      temperature = 0.1
+    )
+    print(f"Model Response Preview: {response[:200]}...")
+    #Check for final answer in response
+    if "FINAL_ANSWER:" in response:
+      final_answer = response.split("FINAL_ANSWER:")[1].strip()
+      if tool_calls_made:
+        tools_html = "<h2 style='font-size:1.5em; color:#2563eb;'> Tools used</h2><ul>"
+        for tool_name, tool_input in tool_calls_made:
+          tools_html += f"<li>{tool_name}({tool_input})</li>"
+        tools_html += "</ul>"
+        final_answer += "\n\n" + tools_html
+      print("Research Completed")
+      return final_answer, messages 
+    #Parse action and input
+    action_match = re.search(r'ACTION:\s*(\w+)',response, re.IGNORECASE)
+    input_match = re.search(r'INPUT:\s*(.+?)(?=\n\n|\nACTION:|\n*$)'. response, re.DOTALL | re.IGNORECASE)
+    if action_match and input_match:
+      tool_action = action_match.group(1).strip().lower()
+      tool_input = input_match.group(1).strip()
+
+      tool_map = {
+        "duckduckgo_search": "duckduckgo_search_tool",
+        "arxiv_search": "arxiv_search_tool",
+        "wikipedia_search": "wikipedia_search_tool"
+      }
+      full_tool_name = tool_map.get(tool_name, tool_name+'_tool')
