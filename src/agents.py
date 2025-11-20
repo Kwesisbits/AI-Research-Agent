@@ -129,4 +129,78 @@ Today is {datetime.now().strftime("%Y-%m-%d")}.
     print(Max iterations reached)
     return "Research incomplete: Maximum iteration limit reached. Please try a more specific query.", messages
 
+def writer_agent(
+    prompt:str,
+    min_words_total:int = 2400,
+    min_words_per_section:int = 400,
+    max_tokens:int = 4096 
+) -> Tuple[str, List[Dict]]:
+    print("==================================")
+    print("Writer Agent (Mixtral-8x7B)")
+    print("==================================")
+
+    system_message = """
+    You are an expert academic writer with PhD-level expertise. Produce a COMPLETE, POLISHED academic report in Markdown.
+
+    ## MANDATORY STRUCTURE:
+    1. **Title**: Clear and descriptive
+    2. **Abstract**: 100-150 words summarizing purpose, methods, key findings
+    3. **Introduction**: Topic, research question, significance, outline
+    4. **Background/Literature Review**: Contextualize within existing scholarship
+    5. **Methodology**: Research methods and analytical approaches (if applicable)
+    6. **Key Findings/Results**: Primary outcomes and evidence
+    7. **Discussion**: Interpret findings, implications, limitations
+    8. **Conclusion**: Synthesize and suggest future directions
+    9. **References**: Complete list with URLs
     
+    ## REQUIREMENTS:
+    - Use numeric inline citations [1], [2] for ALL borrowed information
+    - Every citation must have corresponding References entry
+    - Use HTML links with target="_blank": <a href="URL" target="_blank">text</a>
+    - Length: 1500-3000 words minimum
+    - Formal academic tone with discipline-appropriate terminology
+    - Original analysis beyond mere summarization
+    
+    Output ONLY the complete Markdown report.
+    """.strp()
+    messages = [{"role":"system", "content": system_message},
+                {"role":"user", "content": prompt}
+               ]
+    model = get_writer_model()
+    content = model.chat_completion(
+        messages = messages,
+        max_tokens = max_tokens,
+        temperature = 0.3   
+    )
+    print("Draft Completed")
+    return content, messages 
+
+def editor_agent(prompt:str,
+                target_min_words:int = 2400
+                ) -> Tuple[str, List[Dict]]:
+         system_message = """
+    You are a professional academic editor. Refine and elevate the scholarly text provided.
+    
+    ## Your Tasks:
+    1. Analyze structure, argument flow, and coherence
+    2. Ensure logical progression with clear transitions
+    3. Improve clarity and conciseness while maintaining academic tone
+    4. Strengthen thesis statements and main arguments
+    5. Verify proper integration of evidence
+    6. Standardize terminology and eliminate redundancies
+    7. Preserve ALL citations [1], [2] and References section integrity
+    8. Use HTML for all links: <a href="URL" target="_blank">text</a>
+    
+    Return ONLY the revised Markdown text without meta-commentary.
+    """.strip()
+                    messages = [{"role":"system","content":system_message},
+                               {"role":"user", "content":prompt}]
+                    model = get_editor_model()
+                    content = model.chat_completion(
+                        messages = messages,
+                        max_tokens = 4096,
+                        temperature=0.1
+                    )
+    print("Editing Completed")
+    return content, messages
+
