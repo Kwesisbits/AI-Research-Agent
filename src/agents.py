@@ -95,3 +95,38 @@ Today is {datetime.now().strftime("%Y-%m-%d")}.
         "wikipedia_search": "wikipedia_search_tool"
       }
       full_tool_name = tool_map.get(tool_name, tool_name+'_tool')
+          if full_tool_name in tool_mapping:
+              print(f"Calling {full_tool_name} with: {tool_input}")
+              
+              try:
+                  tool_result = tool_mapping[full_tool_name](tool_input)
+                  tool_calls_made.append((full_tool_name, tool_input))
+                  
+                  messages.append({"role":"assistant", "content":response})
+                  messages.append({
+                      "role": "user",
+                      "content": f"TOOL RESULT from {full_tool_name}:\n{json.dumps(tool_result, indent=2)}\n\n Analyze these results and either:\n1. Use another tool if you need more information\n2. Provide FINAL_ANSWER: with your comprehensive response"  
+                  })
+                  print(f"Tool executed, returned{len(tool_result)} results")
+              except Exception as e:
+                  print(f"Tool execution failed {e}")
+                  messages.append({
+                      "role":"user",
+                      "content": f"ERROR executing {full_tool_name}: {str(e)}\nTry a different tool or provide your answer based on a previous result."
+                  })
+            else:
+                print(f"Unknown tool: {tool_name}")
+                messages.append({
+                    "role": "user",
+                    "content": f"ERROR: Unknown tool '{tool_name}'. Available tools:\n- DUCKDUCKGO_SEARCH\n- ARXIV_SEARCH\n- WIKIPEDIA_SEARCH\n\nPlease use correct tool name or provide FINAL_ANSWER:"
+                })
+        else:
+            print("Model response doesn't match format")
+            messages.append({
+                "role": "user",
+                "content": "Please follow the exact format:\n\nACTION: TOOL_NAME\nINPUT: your query\n\nOR provide:\n\nFINAL_ANSWER: your response\n\nDo not include explanations before the action."
+            })
+    print(Max iterations reached)
+    return "Research incomplete: Maximum iteration limit reached. Please try a more specific query.", messages
+
+    
