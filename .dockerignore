@@ -1,0 +1,80 @@
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Python package files
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Environment files (IMPORTANT: Don't copy secrets!)
+.env
+.env.local
+.env.*.local
+*.env
+
+# Database files (will be created at runtime)
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Model cache (models download at runtime)
+.cache/
+models/
+*.bin
+*.safetensors
+
+# Logs
+*.log
+logs/
+
+# Documentation (not needed in container)
+README.md
+docs/
+*.md
+LICENSE
+
+# Tests (not needed in production)
+tests/
+test_*.py
+*_test.py
+.pytest_cache/
+
+# Docker files (don't need these inside container)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
