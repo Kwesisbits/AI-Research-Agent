@@ -84,4 +84,6 @@ def planner_agent(topic: str) -> List[str]:
     steps = _coerce_to_list(raw)
 
     # Enforce contract
-    required_first = "Research agent: Use DuckDuckGo to perform broad web
+    required_first = "Research agent: Use DuckDuckGo to perform broad web search and collect top relevant items (title, authors, year, venue/source, URL, DOI if available)."
+    required_second = "Research agent: For each collected item, search on arXiv to find matching preprints/versions and record arXiv URLs (if they exist)."
+    final_required = "Writer agent: Generate the final comprehensive Markdown report with inline citations and a complete References section with clickable links."
