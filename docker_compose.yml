@@ -1,0 +1,136 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: research_agent_db
+    environment:
+      POSTGRES_USER: agent_user
+      POSTGRES_PASSWORD: agent_pass_123
+      POSTGRES_DB: research_agent_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agent_network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: research_agent_app
+    ports:
+      - "8000:8000"
+    environment:
+      # Database connection
+      DATABASE_URL: postgresql://agent_user:agent_pass_123@db:5432/research_agent_db
+      
+      # Hugging Face token (get from https://huggingface.co/settings/tokens)
+      HF_TOKEN: ${HF_TOKEN}
+      
+      # Optional: Contact email for arXiv
+      CONTACT_EMAIL: ${CONTACT_EMAIL:-your.email@example.com}
+      
+      # Server config
+      PORT: 8000
+      
+    volumes:
+      # Mount code for hot-reload during development
+      - ./:/app
+      
+      # Persist model cache
+      - model_cache:/app/.cache/huggingface
+      
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - agent_network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres_data:
+    driver: local
+  model_cache:
+    driver: local
+
+networks:
+  agent_network:
+    driver: bridge
+```
+
+## 3. `.dockerignore`
+```
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Environment
+.env
+.env.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+
+# Cache
+.cache/
+__pycache__/
+
+# Model cache (will be downloaded at runtime)
+.cache/huggingface/
+
+# Documentation
+README.md
+docs/
+
+# Tests
+tests/
+pytest.ini
+.pytest_cache/
