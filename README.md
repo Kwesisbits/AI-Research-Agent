@@ -174,7 +174,7 @@ Apache License 2.0 - see [LICENSE](LICENSE) for details.
 ## Contact
 
 - **Issues**: [GitHub Issues](https://github.com/Kwesisbits/ai-research-agent/issues)
-- **Email**: your.email@example.com
+- **Email**: nanaamponsah391@gmail.com
 
 ---
 
