@@ -25,3 +25,6 @@ pymupdf
 
 # Utilities
 docstring_parser
+
+#Groq-AI
+groq
