@@ -16,132 +16,85 @@ from src.research_tools import (
 )
 
 
-# ===== Research Agent with ReAct Pattern =====
 def research_agent(
     prompt: str, 
     return_messages: bool = False
 ) -> Tuple[str, List[Dict]]:
     print("==================================")
-    print(" Research Agent (Hermes-2-Pro)")
+    print("Research Agent")
     print("==================================")
 
-    full_prompt = f"""
-You are an advanced research assistant with expertise in information retrieval. You have access to these tools:
-**Available Tools:**
-1. DUCKDUCKGO_SEARCH - General web search (news, blogs, websites, industry reports)
-   Format: ACTION: DUCKDUCKGO_SEARCH
-           INPUT: your search query
-2. ARXIV_SEARCH - Academic papers (Computer Science, Math, Physics, Statistics only)
-   Format: ACTION: ARXIV_SEARCH
-           INPUT: your search terms
-3. WIKIPEDIA_SEARCH - Encyclopedia for background information and definitions
-   Format: ACTION: WIKIPEDIA_SEARCH
-           INPUT: topic name
-**Instructions:**
-1. Analyze the user's research request carefully
-2. Use appropriate tools to gather comprehensive information
-3. After receiving tool results, analyze them and decide if you need more information
-4. When you have sufficient information, provide your final answer starting with "FINAL_ANSWER:"
-5. Include source URLs in your final answer
-**Format Requirements:**
-- To use a tool: Write exactly "ACTION: TOOL_NAME" on one line, then "INPUT: query" on the next
-- After tool results: Either use another tool OR provide "FINAL_ANSWER: your response"
-- Maximum 5 tool uses allowed
-Today is {datetime.now().strftime("%Y-%m-%d")}.
-**User Request:**
-{prompt}
-"""
+    # Extract actual user query
+    user_query = prompt.split("Your next task:")[-1].strip() if "Your next task:" in prompt else prompt
+    user_query = user_query.split("Research agent:")[-1].strip() if "Research agent:" in user_query else user_query
+    
+    if "Use DuckDuckGo" in user_query or "search on arXiv" in user_query:
+        # Extract topic from task description
+        words = user_query.split()
+        user_query = ' '.join(words[:5])  # First 5 words as topic
+    
+    full_prompt = f"""You are a research assistant. You must search for information about the user's topic.
+USER'S TOPIC: {user_query}
+Respond with EXACTLY this format:
+ACTION: DUCKDUCKGO_SEARCH
+INPUT: {user_query}
+Start now:"""
 
     messages = [{"role": "user", "content": full_prompt}]
-    
     model = get_research_model()
     
-    conversation_history = []
-    max_iterations = 5
     tool_calls_made = []
+    all_results = []
     
-    for iteration in range(max_iterations):
-        print(f"\n Iteration {iteration + 1}/{max_iterations}")
+    # Just do ONE search and return results
+    for iteration in range(2):
+        response = model.chat_completion(messages, max_tokens=256, temperature=0.1)
         
-        response = model.chat_completion(
-            messages,
-            max_tokens=2048,
-            temperature=0.1
-        )
+        print(f"Response: {response[:150]}...")
         
-        print(f" Model Response Preview: {response[:200]}...")
-        
-        # Check for final answer
-        if "FINAL_ANSWER:" in response:
-            final_answer = response.split("FINAL_ANSWER:")[1].strip()
-            
-            # Append tool calls summary
-            if tool_calls_made:
-                tools_html = "<h2 style='font-size:1.5em; color:#2563eb;'> Tools used</h2><ul>"
-                for tool_name, tool_input in tool_calls_made:
-                    tools_html += f"<li>{tool_name}({tool_input})</li>"
-                tools_html += "</ul>"
-                final_answer += "\n\n" + tools_html
-            
-            print(" Research completed")
-            return final_answer, messages
-        
-        # Parse ACTION and INPUT
-        action_match = re.search(r'ACTION:\s*(\w+)', response, re.IGNORECASE)
-        input_match = re.search(r'INPUT:\s*(.+?)(?=\n\n|\nACTION:|\n*$)', response, re.DOTALL | re.IGNORECASE)
+        # Parse action
+        action_match = re.search(r'ACTION[:\s]+(\w+)', response, re.IGNORECASE)
+        input_match = re.search(r'INPUT[:\s]+(.+?)(?=\n|$)', response, re.IGNORECASE)
         
         if action_match and input_match:
-            tool_name = action_match.group(1).strip().lower()
+            tool_name = action_match.group(1).upper()
             tool_input = input_match.group(1).strip()
             
-            # Normalize tool name
-            tool_map = {
-                "duckduckgo_search": "duckduckgo_search_tool",
-                "arxiv_search": "arxiv_search_tool",
-                "wikipedia_search": "wikipedia_search_tool",
-            }
-            
-            full_tool_name = tool_map.get(tool_name, tool_name + "_tool")
-            
-            if full_tool_name in tool_mapping:
-                print(f" Calling {full_tool_name} with: {tool_input}")
-                
+            if "DUCKDUCKGO" in tool_name:
                 try:
-                    tool_result = tool_mapping[full_tool_name](tool_input)
-                    tool_calls_made.append((full_tool_name, tool_input))
+                    results = tool_mapping["duckduckgo_search_tool"](tool_input, max_results=5)
+                    tool_calls_made.append(("duckduckgo_search_tool", tool_input))
+                    all_results.extend(results)
                     
-                    messages.append({"role": "assistant", "content": response})
-                    messages.append({
-                        "role": "user",
-                        "content": f"TOOL_RESULT from {full_tool_name}:\n{json.dumps(tool_result, indent=2)}\n\nAnalyze these results and either:\n1. Use another tool if you need more information\n2. Provide FINAL_ANSWER: with your comprehensive response"
-                    })
+                    # Format results immediately
+                    output = f"Search results for '{tool_input}':\n\n"
+                    for i, r in enumerate(results[:5], 1):
+                        output += f"{i}. {r.get('title', 'No title')}\n"
+                        output += f"   {r.get('content', '')[:200]}...\n"
+                        output += f"   URL: {r.get('url', 'N/A')}\n\n"
                     
-                    print(f" Tool executed, returned {len(tool_result)} results")
+                    # Add tools used section
+                    output += "\n<h2>Tools used</h2><ul>"
+                    output += f"<li>duckduckgo_search_tool({tool_input})</li>"
+                    output += "</ul>"
+                    
+                    return output, messages
+                    
                 except Exception as e:
-                    print(f" Tool execution failed: {e}")
-                    messages.append({
-                        "role": "user",
-                        "content": f"ERROR executing {full_tool_name}: {str(e)}\nTry a different tool or provide your answer based on previous results."
-                    })
-            else:
-                print(f" Unknown tool: {tool_name}")
-                messages.append({
-                    "role": "user",
-                    "content": f"ERROR: Unknown tool '{tool_name}'. Available tools:\n- DUCKDUCKGO_SEARCH\n- ARXIV_SEARCH\n- WIKIPEDIA_SEARCH\n\nPlease use correct tool name or provide FINAL_ANSWER:"
-                })
-        else:
-            # Model didn't follow format
-            print(" Model response doesn't match format")
+                    return f"Search error: {str(e)}", messages
+        
+        # If no valid action, try once more with explicit instruction
+        if iteration == 0:
             messages.append({
                 "role": "user",
-                "content": "Please follow the exact format:\n\nACTION: TOOL_NAME\nINPUT: your query\n\nOR provide:\n\nFINAL_ANSWER: your response\n\nDo not include explanations before the action."
+                "content": f"ACTION: DUCKDUCKGO_SEARCH\nINPUT: {user_query}"
             })
     
-    # Iteration limit reached
-    print(" Max iterations reached")
-    return "Research incomplete: Maximum iteration limit reached. Please try a more specific query.", messages
-
-
+    # Fallback
+    if tool_calls_made:
+        return f"Completed search for: {user_query}. Found {len(all_results)} results.", messages
+    return f"Unable to search for: {user_query}", messages
+    
 # ===== Writer Agent =====
 def writer_agent(
     prompt: str,
